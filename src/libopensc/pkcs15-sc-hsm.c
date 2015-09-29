@@ -796,20 +796,24 @@ static int sc_pkcs15emu_sc_hsm_init (sc_pkcs15_card_t * p15card)
 	appinfo->ddo.aid = sc_hsm_aid;
 	p15card->app = appinfo;
 
-	sc_path_set(&path, SC_PATH_TYPE_DF_NAME, sc_hsm_aid.value, sc_hsm_aid.len, 0, 0);
-	r = sc_select_file(card, &path, &file);
-	LOG_TEST_RET(card->ctx, r, "Could not select SmartCard-HSM application");
-
 	p15card->card->version.hw_major = 24;	/* JCOP 2.4.1r3 */
 	p15card->card->version.hw_minor = 13;
-	p15card->card->version.fw_major = file->prop_attr[file->prop_attr_len - 2];
-	p15card->card->version.fw_minor = file->prop_attr[file->prop_attr_len - 1];
-
-	sc_file_free(file);
+	p15card->card->version.fw_major = 0;
+	p15card->card->version.fw_minor = 0;
 
 	/* Read device certificate to determine serial number */
 	sc_path_set(&path, SC_PATH_TYPE_FILE_ID, (u8 *) "\x2F\x02", 2, 0, 0);
 	r = sc_select_file(card, &path, &file);
+	if (r == SC_ERROR_INCORRECT_PARAMETERS) {
+		sc_path_set(&path, SC_PATH_TYPE_DF_NAME, sc_hsm_aid.value, sc_hsm_aid.len, 0, 0);
+		r = sc_select_file(card, &path, &file);
+		LOG_TEST_RET(card->ctx, r, "Could not select SmartCard-HSM application");
+		sc_file_free(file);
+
+		sc_path_set(&path, SC_PATH_TYPE_FILE_ID, (u8 *) "\x2F\x02", 2, 0, 0);
+		r = sc_select_file(card, &path, &file);
+	}
+
 	LOG_TEST_RET(card->ctx, r, "Could not select EF.C_DevAut");
 	sc_file_free(file);
 
